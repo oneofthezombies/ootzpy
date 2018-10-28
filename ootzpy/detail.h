@@ -7,11 +7,12 @@ namespace ootzpy
 
 
 /* to use for initialize and finalize of python c api */
-struct OPInterpreter
+class Interpreter
 {
+public:
 
     /* call initializer and add running path for module */
-    OPInterpreter()
+    Interpreter()
     {
         Py_Initialize();
         PyRun_SimpleString("import sys");
@@ -21,7 +22,7 @@ struct OPInterpreter
     /* call finalizer 
      * if an error is detected then program is terminated
      */
-    ~OPInterpreter()
+    ~Interpreter()
     {
         if (Py_FinalizeEx() < 0)
         {
@@ -46,7 +47,7 @@ struct OPInterpreter
  * this class is not used alone. 
  * this is used deleter of std::unique_ptr<PyObject*>.
  */
-struct OPReleaser
+struct Releaser
 {
     constexpr void operator()(PyObject* p)
     {
@@ -58,7 +59,7 @@ struct OPReleaser
 /* for debug. 
  * if error is ocuured print error to console 
  */
-constexpr PyObject* OPCheckError(PyObject* p)
+constexpr PyObject* CheckError(PyObject* p)
 {
 #ifdef _DEBUG
     if (nullptr == p)
@@ -72,37 +73,37 @@ constexpr PyObject* OPCheckError(PyObject* p)
  * this class has std::unique_ptr<PyObject*, OPReleaser>.
  * Noncopyconstructable, Noncopyassignable, Moveconstructable, Moveassignable
  */
-class OPOwner : protected std::unique_ptr<PyObject, OPReleaser>
+class Owner : protected std::unique_ptr<PyObject, Releaser>
 {
-    using Base = std::unique_ptr<PyObject, OPReleaser>;
+    using Base = std::unique_ptr<PyObject, Releaser>;
 
 public:
-    OPOwner() 
-        : Base(nullptr, OPReleaser())
+    Owner() 
+        : Base(nullptr, Releaser())
     {}
 
-    OPOwner(PyObject* pObject) 
-        : Base(pObject, OPReleaser())
+    Owner(PyObject* pObject) 
+        : Base(pObject, Releaser())
     {}
 
-    ~OPOwner() = default;
+    ~Owner() = default;
 
     /* Noncopyconstructable */
-    OPOwner(const OPOwner&) = delete;
+    Owner(const Owner&) = delete;
 
     /* Noncopyassignable */
-    OPOwner& operator=(const OPOwner&) = delete;
+    Owner& operator=(const Owner&) = delete;
 
     /* Moveconstructable */
-    constexpr OPOwner(OPOwner&&) = default;
+    constexpr Owner(Owner&&) = default;
 
     /* Moveassignable */
-    constexpr OPOwner& operator=(OPOwner&&) = default;
+    constexpr Owner& operator=(Owner&&) = default;
 
     /* if assigned PyObject* then release current and assign new */
-    OPOwner& operator=(PyObject* pObject)
+    Owner& operator=(PyObject* pObject)
     {
-        reset(OPCheckError(pObject));
+        reset(CheckError(pObject));
         return *this;
     }
 
