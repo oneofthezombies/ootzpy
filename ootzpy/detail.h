@@ -70,39 +70,44 @@ constexpr PyObject* OPCheckError(PyObject* p)
 
 /* PyObject*'s owner.
  * this class has std::unique_ptr<PyObject*, OPReleaser>.
- * Noncopyconstructable, Noncopyassignable
+ * Noncopyconstructable, Noncopyassignable, Moveconstructable, Moveassignable
  */
-class OPOwner
+class OPOwner : protected std::unique_ptr<PyObject, OPReleaser>
 {
+    using Base = std::unique_ptr<PyObject, OPReleaser>;
+
 public:
     OPOwner() 
-        : _pObject(nullptr, OPReleaser()) 
+        : Base(nullptr, OPReleaser())
     {}
 
     OPOwner(PyObject* pObject) 
-        : _pObject(OPCheckError(pObject), OPReleaser())
+        : Base(pObject, OPReleaser())
     {}
 
     ~OPOwner() = default;
 
+    /* Noncopyconstructable */
+    OPOwner(const OPOwner&) = delete;
+
+    /* Noncopyassignable */
+    OPOwner& operator=(const OPOwner&) = delete;
+
+    /* Moveconstructable */
     constexpr OPOwner(OPOwner&&) = default;
+
+    /* Moveassignable */
     constexpr OPOwner& operator=(OPOwner&&) = default;
 
     /* if assigned PyObject* then release current and assign new */
     OPOwner& operator=(PyObject* pObject)
     {
-        _pObject.reset(OPCheckError(pObject));
+        reset(OPCheckError(pObject));
         return *this;
     }
 
     /* get raw pointer */
-    PyObject* get() const { return _pObject.get(); }
-
-    OPOwner(const OPOwner&) = delete;
-    OPOwner& operator=(const OPOwner&) = delete;
-
-private:
-    std::unique_ptr<PyObject, OPReleaser> _pObject;
+    PyObject* get() const { return Base::get(); }
 };
 
 
